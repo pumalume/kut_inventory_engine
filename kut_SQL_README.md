@@ -78,3 +78,25 @@ CREATE TABLE kut_products (
     unit_price DECIMAL(10,2) DEFAULT 0.00,
     is_active BOOLEAN DEFAULT TRUE
 ) ENGINE=InnoDB;
+
+
+-- The "Identity" (Master Data)
+CREATE TABLE kut_ingredients (
+    ingredient_id INT AUTO_INCREMENT PRIMARY KEY,
+    ingredient_name VARCHAR(255) UNIQUE NOT NULL,
+    unit_id INT,
+    reorder_level DECIMAL(15,4), -- When to trigger a warning
+    FOREIGN KEY (unit_id) REFERENCES kut_measuring_units(unit_id)
+);
+
+-- The "State" (Inventory Ledger)
+CREATE TABLE kut_stock_ledger (
+    stock_id INT AUTO_INCREMENT PRIMARY KEY,
+    ingredient_id INT,
+    batch_number VARCHAR(50),
+    expiry_date DATE,
+    quantity_on_hand DECIMAL(15,4),
+    warehouse_location VARCHAR(100),
+    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (ingredient_id) REFERENCES kut_ingredients(ingredient_id)
+);
