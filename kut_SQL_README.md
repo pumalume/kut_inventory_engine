@@ -67,3 +67,14 @@ CREATE TABLE kut_order_items (
     FOREIGN KEY (ingredient_id) REFERENCES kut_ingredients(ingredient_id) ON UPDATE CASCADE,
     FOREIGN KEY (unit_id) REFERENCES kut_measuring_units(unit_id) ON UPDATE CASCADE
 ) ENGINE=InnoDB;
+
+
+-- Replace your old kut_products with this updated version
+DROP TABLE IF EXISTS kut_products;
+CREATE TABLE kut_products (
+    product_id INT AUTO_INCREMENT PRIMARY KEY,
+    product_name VARCHAR(255) UNIQUE NOT NULL,
+    category VARCHAR(100), -- e.g., 'Dondurma', 'Pasta'
+    unit_price DECIMAL(10,2) DEFAULT 0.00,
+    is_active BOOLEAN DEFAULT TRUE
+) ENGINE=InnoDB;
