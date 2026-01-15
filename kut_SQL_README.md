@@ -147,3 +147,23 @@ INSERT INTO kut_stock_ledger (ingredient_id, batch_number, quantity_on_hand, war
 (2, 'BATCH-MILK-A', 60.00, 'Soğuk Hava', '2026-02-15'),
 (2, 'BATCH-MILK-B', 60.00, 'Soğuk Hava', '2026-02-20'),
 (4, 'OLD-SUGAR', 5.00, 'Kuru Depo', '2027-01-01');
+
+-- SILO A: The Product Identity (Owner's Catalog)
+CREATE TABLE kut_pos_products (
+    product_id INT AUTO_INCREMENT PRIMARY KEY,
+    barcode VARCHAR(100) UNIQUE, -- The wand reads this
+    product_name VARCHAR(255) NOT NULL,
+    category VARCHAR(100), 
+    default_price DECIMAL(10,2) DEFAULT 0.00,
+    is_active BOOLEAN DEFAULT TRUE
+) ENGINE=InnoDB;
+
+-- SILO B: The Sales Activity (The Staff's POS)
+CREATE TABLE kut_sales_log (
+    transaction_id INT AUTO_INCREMENT PRIMARY KEY,
+    product_id INT, -- Points to the Master Product
+    qty_sold INT DEFAULT 1,
+    final_price DECIMAL(10,2), -- Captured at time of sale
+    sale_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (product_id) REFERENCES kut_pos_products(product_id)
+) ENGINE=InnoDB;
