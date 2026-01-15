@@ -1,73 +1,118 @@
-/** * RE-ENGINEERED: Pulls Ingredients and Current Stock from DB 
- * Useful for the "Current Inventory" tab in Google Sheets
+/**
+ * KUT v2 ENTERPRISE PLATFORM - Master Controller
  */
-function pullInventoryFromDB() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName("kut_inventory_status") || ss.insertSheet("kut_inventory_status");
-  
-  try {
-    var conn = Jdbc.getConnection(url, user, pwd);
-    var sql = "SELECT i.ingredient_name, i.current_stock_qty, u.unit_name " +
-              "FROM kut_ingredients i JOIN kut_measuring_units u ON i.unit_id = u.unit_id";
-    var results = conn.createStatement().executeQuery(sql);
-    
-    sheet.clear();
-    sheet.appendRow(["Ingredient Name", "Stock Quantity", "Unit"]);
-    
-    var dataRows = [];
-    while (results.next()) {
-      dataRows.push([results.getString(1), results.getDouble(2), results.getString(3)]);
+
+const DB_CONFIG = {
+  host: "srv990.hstgr.io",
+  name: "u214463888_iqIB3",
+  user: "u214463888_GOVnK",
+  pwd: "Zv3UcW5koC", 
+  port: 3306
+};
+
+const DB_URL = `jdbc:mysql://${DB_CONFIG.host}:${DB_CONFIG.port}/${DB_CONFIG.name}`;
+
+/**
+ * STEP 1: INITIALIZE WORKBOOK
+ * Creates the empty tabs with headers for all 7 silos.
+ */
+function INITIALIZE_V2_WORKBOOK() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ui = SpreadsheetApp.getUi();
+
+  const sheetsNeeded = [
+    { name: "kutv2_branches", headers: [["ID", "Branch Name", "Is Prod Center"]] },
+    { name: "kutv2_measuring_units", headers: [["ID", "Unit Name", "Abbr"]] },
+    { name: "kutv2_ingredients", headers: [["ID", "Ingredient Name", "Unit ID", "Reorder Level"]] },
+    { name: "kutv2_stock_ledger", headers: [["ID", "Branch ID", "Ing ID", "Batch", "Qty", "Last Updated"]] },
+    { name: "kutv2_pos_products", headers: [["ID", "Barcode", "Product Name", "Category", "Price"]] },
+    { name: "kutv2_sales_log", headers: [["ID", "Branch ID", "Prod ID", "Qty", "Price", "Time"]] },
+    { name: "kutv2_recipes", headers: [["ID", "Prod ID", "Ing ID", "Qty Needed"]] }
+  ];
+
+  sheetsNeeded.forEach(s => {
+    let sheet = ss.getSheetByName(s.name);
+    if (!sheet) {
+      sheet = ss.insertSheet(s.name);
     }
-    if (dataRows.length > 0) sheet.getRange(2, 1, dataRows.length, 3).setValues(dataRows);
+    sheet.clear();
+    sheet.getRange(1, 1, 1, s.headers[0].length).setValues(s.headers)
+         .setFontWeight("bold")
+         .setBackground("#cfe2f3"); // Light blue professional look
+    sheet.setFrozenRows(1);
+  });
+
+  // Cleanup: Delete the default "Sheet1" if it exists
+  const defaultSheet = ss.getSheetByName("Sheet1");
+  if (defaultSheet) ss.deleteSheet(defaultSheet);
+
+  ui.alert("🚀 v2 Framework Initialized. Click '📥 2. Pull Substantial Data' to populate.");
+}
+
+/**
+ * STEP 2: PULL SUBSTANTIAL DATA
+ * Connects to MySQL and populates the sheets with the v2 data.
+ */
+function pullV2Data() {
+  const ui = SpreadsheetApp.getUi();
+  try {
+    const conn = Jdbc.getConnection(DB_URL, DB_CONFIG.user, DB_CONFIG.pwd);
+    
+    // Mapping our sheets to their SQL queries and column counts
+    const tableMapping = [
+      { name: "kutv2_branches", query: "SELECT * FROM kutv2_branches", cols: 3 },
+      { name: "kutv2_measuring_units", query: "SELECT * FROM kutv2_measuring_units", cols: 3 },
+      { name: "kutv2_ingredients", query: "SELECT * FROM kutv2_ingredients", cols: 4 },
+      { name: "kutv2_stock_ledger", query: "SELECT * FROM kutv2_stock_ledger", cols: 6 },
+      { name: "kutv2_pos_products", query: "SELECT * FROM kutv2_pos_products", cols: 5 },
+      { name: "kutv2_sales_log", query: "SELECT * FROM kutv2_sales_log", cols: 6 },
+      { name: "kutv2_recipes", query: "SELECT * FROM kutv2_recipes", cols: 4 }
+    ];
+
+    tableMapping.forEach(map => {
+      const results = conn.createStatement().executeQuery(map.query);
+      writeDataToSheet(map.name, results, map.cols);
+    });
+
     conn.close();
+    ui.alert("✅ Substantial v2 Data Pulled Successfully!");
   } catch (e) {
-    Logger.log("Inventory Pull Error: " + e.toString());
+    ui.alert("❌ Error: " + e.message);
   }
 }
 
-/** * RE-ENGINEERED: Process "Acknowledged" Orders 
- * This moves items from 'BEKLIYOR' (Red) to 'ONAYLANDI' (Green) and updates stock.
+/**
+ * HELPER: Writes result sets to sheets
  */
-function acknowledgePendingOrders() {
-  try {
-    var conn = Jdbc.getConnection(url, user, pwd);
-    conn.setAutoCommit(false);
+function writeDataToSheet(sheetName, results, colCount) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+  if (!sheet) return;
 
-    // 1. Get all pending orders
-    var stmt = conn.createStatement();
-    var pendingOrders = stmt.executeQuery("SELECT order_id FROM kut_inventory_orders WHERE order_status = 'BEKLIYOR'");
-    
-    var orderIds = [];
-    while (pendingOrders.next()) { orderIds.push(pendingOrders.getInt(1)); }
-
-    for (var i = 0; i < orderIds.length; i++) {
-      var id = orderIds[i];
-      
-      // Update Stock (Addition or Subtraction based on your logic)
-      // For 'GIRIS' we add, for 'CIKIS' we subtract
-      var updateStockSql = "UPDATE kut_ingredients i " +
-                           "JOIN kut_order_items oi ON i.ingredient_id = oi.ingredient_id " +
-                           "JOIN kut_inventory_orders o ON oi.order_id = o.order_id " +
-                           "SET i.current_stock_qty = CASE " +
-                           "  WHEN o.transaction_type = 'GIRIS' THEN i.current_stock_qty + oi.quantity " +
-                           "  WHEN o.transaction_type = 'CIKIS' THEN i.current_stock_qty - oi.quantity " +
-                           "  ELSE i.current_stock_qty END " +
-                           "WHERE o.order_id = ?";
-      
-      var stockStmt = conn.prepareStatement(updateStockSql);
-      stockStmt.setInt(1, id);
-      stockStmt.executeUpdate();
-
-      // Set Status to ONAYLANDI
-      var statusStmt = conn.prepareStatement("UPDATE kut_inventory_orders SET order_status = 'ONAYLANDI', confirmed_at = NOW() WHERE order_id = ?");
-      statusStmt.setInt(1, id);
-      statusStmt.executeUpdate();
-    }
-
-    conn.commit();
-    conn.close();
-    SpreadsheetApp.getUi().alert("Processed " + orderIds.length + " pending orders into stock.");
-  } catch (e) {
-    SpreadsheetApp.getUi().alert("Acknowledgment Error: " + e.toString());
+  // Clear existing rows (keep headers)
+  if (sheet.getLastRow() > 1) {
+    sheet.getRange(2, 1, sheet.getLastRow() - 1, colCount).clearContent();
   }
+
+  let rows = [];
+  while (results.next()) {
+    let row = [];
+    for (let i = 1; i <= colCount; i++) {
+      row.push(results.getString(i));
+    }
+    rows.push(row);
+  }
+
+  if (rows.length > 0) {
+    sheet.getRange(2, 1, rows.length, colCount).setValues(rows);
+  }
+}
+
+/**
+ * MENU CREATOR
+ */
+function onOpen() {
+  SpreadsheetApp.getUi().createMenu('🏢 KUT Enterprise v2')
+      .addItem('⚠️ 1. Initialize Workbook', 'INITIALIZE_V2_WORKBOOK')
+      .addItem('📥 2. Pull Substantial Data', 'pullV2Data')
+      .addToUi();
 }
