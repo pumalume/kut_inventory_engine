@@ -100,3 +100,50 @@ CREATE TABLE kut_stock_ledger (
     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (ingredient_id) REFERENCES kut_ingredients(ingredient_id)
 );
+
+
+-- 1. CLEAN UP (Optional: removes previous test data to avoid ID conflicts)
+SET FOREIGN_KEY_CHECKS = 0;
+TRUNCATE TABLE kut_stock_ledger;
+TRUNCATE TABLE kut_order_items;
+TRUNCATE TABLE kut_inventory_orders;
+TRUNCATE TABLE kut_ingredients;
+TRUNCATE TABLE kut_measuring_units;
+SET FOREIGN_KEY_CHECKS = 1;
+
+-- 2. MEASURING UNITS
+INSERT INTO kut_measuring_units (unit_id, unit_name, unit_abbr) VALUES 
+(1, 'Kilogram', 'kg'),
+(2, 'Litre', 'L'),
+(3, 'Adet', 'pcs'),
+(4, 'Gram', 'g');
+
+-- 3. INGREDIENTS (The Master List)
+-- Setting reorder levels to see 'LOW STOCK' logic in action
+INSERT INTO kut_ingredients (ingredient_id, ingredient_name, unit_id, reorder_level) VALUES 
+(1, 'Antep Fıstığı', 1, 20.00),
+(2, 'Tam Yağlı Süt', 2, 100.00),
+(3, 'Sahlep', 1, 5.00),
+(4, 'Kristal Şeker', 1, 50.00),
+(5, 'Vanilya Çubuğu', 3, 10.00);
+
+-- 4. INVENTORY ORDERS (Transactional Headers)
+-- One is pending (Red Flag), one is already confirmed (Green)
+INSERT INTO kut_inventory_orders (order_id, order_number, transaction_type, order_status) VALUES 
+(101, 'ORD-2026-001', 'GIRIS', 'ONAYLANDI'),
+(102, 'ORD-2026-002', 'GIRIS', 'BEKLIYOR');
+
+-- 5. ORDER ITEMS (The specific things we ordered)
+INSERT INTO kut_order_items (order_id, ingredient_id, quantity) VALUES 
+(101, 1, 25.00), -- 25kg Pistachio (Confirmed)
+(101, 2, 120.00),-- 120L Milk (Confirmed)
+(102, 3, 2.00),  -- 2kg Salep (Pending - Not in stock yet!)
+(102, 4, 10.00); -- 10kg Sugar (Pending)
+
+-- 6. STOCK LEDGER (The Physical Reality)
+-- We only populate this with the "Confirmed" items from Order 101
+INSERT INTO kut_stock_ledger (ingredient_id, batch_number, quantity_on_hand, warehouse_location, expiry_date) VALUES 
+(1, 'BATCH-PIS-01', 25.00, 'Kuru Depo', '2026-12-01'),
+(2, 'BATCH-MILK-A', 60.00, 'Soğuk Hava', '2026-02-15'),
+(2, 'BATCH-MILK-B', 60.00, 'Soğuk Hava', '2026-02-20'),
+(4, 'OLD-SUGAR', 5.00, 'Kuru Depo', '2027-01-01');
