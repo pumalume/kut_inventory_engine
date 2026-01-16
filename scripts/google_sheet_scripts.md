@@ -1,5 +1,6 @@
 /**
- * KUT v2 ENTERPRISE PLATFORM - Master Controller
+ * KTD ENTERPRISE PLATFORM - Master Controller
+ * Namespace: ktd_
  */
 
 const DB_CONFIG = {
@@ -13,82 +14,81 @@ const DB_CONFIG = {
 const DB_URL = `jdbc:mysql://${DB_CONFIG.host}:${DB_CONFIG.port}/${DB_CONFIG.name}`;
 
 /**
- * STEP 1: INITIALIZE WORKBOOK
- * Creates the empty tabs with headers for all 7 silos.
+ * 1. INITIALIZE KTD WORKBOOK
+ * Creates the tabs with headers for all 11 enterprise tables.
  */
-function INITIALIZE_V2_WORKBOOK() {
+function INITIALIZE_KTD_WORKBOOK() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const ui = SpreadsheetApp.getUi();
 
   const sheetsNeeded = [
-    { name: "kutv2_branches", headers: [["ID", "Branch Name", "Is Prod Center"]] },
-    { name: "kutv2_measuring_units", headers: [["ID", "Unit Name", "Abbr"]] },
-    { name: "kutv2_ingredients", headers: [["ID", "Ingredient Name", "Unit ID", "Reorder Level"]] },
-    { name: "kutv2_stock_ledger", headers: [["ID", "Branch ID", "Ing ID", "Batch", "Qty", "Last Updated"]] },
-    { name: "kutv2_pos_products", headers: [["ID", "Barcode", "Product Name", "Category", "Price"]] },
-    { name: "kutv2_sales_log", headers: [["ID", "Branch ID", "Prod ID", "Qty", "Price", "Time"]] },
-    { name: "kutv2_recipes", headers: [["ID", "Prod ID", "Ing ID", "Qty Needed"]] }
+    { name: "ktd_branches", headers: [["branch_id", "branch_name", "is_production_center"]] },
+    { name: "ktd_measuring_units", headers: [["unit_id", "unit_name", "unit_abbr"]] },
+    { name: "ktd_ingredients", headers: [["ingredient_id", "ingredient_name", "unit_id", "reorder_level", "current_cost"]] },
+    { name: "ktd_stock_ledger", headers: [["stock_id", "branch_id", "ingredient_id", "quantity_change", "reason", "ai_context", "timestamp"]] },
+    { name: "ktd_pos_products", headers: [["product_id", "barcode", "product_name", "category", "unit_price"]] },
+    { name: "ktd_recipes", headers: [["recipe_id", "product_id", "ingredient_id", "qty_required"]] },
+    { name: "ktd_production_log", headers: [["production_id", "branch_id", "product_id", "batch_quantity", "status", "timestamp"]] },
+    { name: "ktd_customers", headers: [["customer_id", "customer_name", "phone", "balance_limit"]] },
+    { name: "ktd_sales_log", headers: [["sale_id", "branch_id", "product_id", "quantity_sold", "total_price", "customer_id", "timestamp"]] },
+    { name: "ktd_invoices", headers: [["invoice_id", "customer_id", "sale_id", "amount", "invoice_date", "is_paid"]] },
+    { name: "ktd_payments", headers: [["payment_id", "customer_id", "amount_paid", "payment_date", "payment_method"]] }
   ];
 
   sheetsNeeded.forEach(s => {
     let sheet = ss.getSheetByName(s.name);
-    if (!sheet) {
-      sheet = ss.insertSheet(s.name);
-    }
+    if (!sheet) { sheet = ss.insertSheet(s.name); }
     sheet.clear();
     sheet.getRange(1, 1, 1, s.headers[0].length).setValues(s.headers)
          .setFontWeight("bold")
-         .setBackground("#cfe2f3"); // Light blue professional look
+         .setBackground("#d9ead3"); // Professional green for KTD
     sheet.setFrozenRows(1);
   });
 
-  // Cleanup: Delete the default "Sheet1" if it exists
   const defaultSheet = ss.getSheetByName("Sheet1");
   if (defaultSheet) ss.deleteSheet(defaultSheet);
 
-  ui.alert("🚀 v2 Framework Initialized. Click '📥 2. Pull Substantial Data' to populate.");
+  ui.alert("🚀 KTD Enterprise Framework Initialized!");
 }
 
 /**
- * STEP 2: PULL SUBSTANTIAL DATA
- * Connects to MySQL and populates the sheets with the v2 data.
+ * 2. PULL KTD DATA
+ * Automatically detects column counts and pulls data from MySQL.
  */
-function pullV2Data() {
+function pullKtdData() {
   const ui = SpreadsheetApp.getUi();
   try {
     const conn = Jdbc.getConnection(DB_URL, DB_CONFIG.user, DB_CONFIG.pwd);
     
-    // Mapping our sheets to their SQL queries and column counts
-    const tableMapping = [
-      { name: "kutv2_branches", query: "SELECT * FROM kutv2_branches", cols: 3 },
-      { name: "kutv2_measuring_units", query: "SELECT * FROM kutv2_measuring_units", cols: 3 },
-      { name: "kutv2_ingredients", query: "SELECT * FROM kutv2_ingredients", cols: 4 },
-      { name: "kutv2_stock_ledger", query: "SELECT * FROM kutv2_stock_ledger", cols: 6 },
-      { name: "kutv2_pos_products", query: "SELECT * FROM kutv2_pos_products", cols: 5 },
-      { name: "kutv2_sales_log", query: "SELECT * FROM kutv2_sales_log", cols: 6 },
-      { name: "kutv2_recipes", query: "SELECT * FROM kutv2_recipes", cols: 4 }
+    const tables = [
+      "ktd_branches", "ktd_measuring_units", "ktd_ingredients", 
+      "ktd_stock_ledger", "ktd_pos_products", "ktd_recipes", 
+      "ktd_production_log", "ktd_customers", "ktd_sales_log", 
+      "ktd_invoices", "ktd_payments"
     ];
 
-    tableMapping.forEach(map => {
-      const results = conn.createStatement().executeQuery(map.query);
-      writeDataToSheet(map.name, results, map.cols);
+    tables.forEach(tableName => {
+      const results = conn.createStatement().executeQuery(`SELECT * FROM ${tableName}`);
+      const metaData = results.getMetaData();
+      const colCount = metaData.getColumnCount(); // Dynamic column counting 🤖
+      
+      writeDataToSheet(tableName, results, colCount);
     });
 
     conn.close();
-    ui.alert("✅ Substantial v2 Data Pulled Successfully!");
+    ui.alert("✅ KTD Data Sync Complete!");
   } catch (e) {
-    ui.alert("❌ Error: " + e.message);
+    ui.alert("❌ Sync Error: " + e.message);
   }
 }
 
 /**
- * HELPER: Writes result sets to sheets
+ * HELPER: Writes data rows
  */
 function writeDataToSheet(sheetName, results, colCount) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
   if (!sheet) return;
 
-  // Clear existing rows (keep headers)
   if (sheet.getLastRow() > 1) {
     sheet.getRange(2, 1, sheet.getLastRow() - 1, colCount).clearContent();
   }
@@ -96,9 +96,7 @@ function writeDataToSheet(sheetName, results, colCount) {
   let rows = [];
   while (results.next()) {
     let row = [];
-    for (let i = 1; i <= colCount; i++) {
-      row.push(results.getString(i));
-    }
+    for (let i = 1; i <= colCount; i++) { row.push(results.getString(i)); }
     rows.push(row);
   }
 
@@ -108,11 +106,11 @@ function writeDataToSheet(sheetName, results, colCount) {
 }
 
 /**
- * MENU CREATOR
+ * MENU
  */
 function onOpen() {
-  SpreadsheetApp.getUi().createMenu('🏢 KUT Enterprise v2')
-      .addItem('⚠️ 1. Initialize Workbook', 'INITIALIZE_V2_WORKBOOK')
-      .addItem('📥 2. Pull Substantial Data', 'pullV2Data')
+  SpreadsheetApp.getUi().createMenu('🏢 KTD Enterprise Platform')
+      .addItem('⚠️ 1. Initialize Workbook', 'INITIALIZE_KTD_WORKBOOK')
+      .addItem('📥 2. Pull Data from Server', 'pullKtdData')
       .addToUi();
 }
