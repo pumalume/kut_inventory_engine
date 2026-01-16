@@ -1,0 +1,49 @@
+SET FOREIGN_KEY_CHECKS = 0;
+
+-- 1. CLEAN SLATE
+DROP TABLE IF EXISTS ktd_payments;
+DROP TABLE IF EXISTS ktd_invoices;
+DROP TABLE IF EXISTS ktd_customers;
+DROP TABLE IF EXISTS ktd_recipes;
+DROP TABLE IF EXISTS ktd_sales_log;
+DROP TABLE IF EXISTS ktd_stock_ledger;
+DROP TABLE IF EXISTS ktd_pos_products;
+DROP TABLE IF EXISTS ktd_ingredients;
+DROP TABLE IF EXISTS ktd_measuring_units;
+DROP TABLE IF EXISTS ktd_branches;
+DROP TABLE IF EXISTS ktd_unit_conversions;
+
+-- 2. THE INFRASTRUCTURE
+CREATE TABLE ktd_branches (
+    branch_id INT AUTO_INCREMENT PRIMARY KEY,
+    branch_name VARCHAR(100),
+    is_production_center BOOLEAN
+) ENGINE=InnoDB;
+
+CREATE TABLE ktd_measuring_units (
+    unit_id INT AUTO_INCREMENT PRIMARY KEY,
+    unit_name VARCHAR(50), 
+    unit_abbr VARCHAR(10)
+) ENGINE=InnoDB;
+
+-- 3. THE INVENTORY SILO (AI-Ready)
+CREATE TABLE ktd_ingredients (
+    ingredient_id INT AUTO_INCREMENT PRIMARY KEY,
+    ingredient_name VARCHAR(255),
+    unit_id INT,
+    reorder_level DECIMAL(15,4),
+    current_cost DECIMAL(15,2), -- Essential for Profit Margin AI
+    FOREIGN KEY (unit_id) REFERENCES ktd_measuring_units(unit_id)
+) ENGINE=InnoDB;
+
+CREATE TABLE ktd_stock_ledger (
+    stock_id INT AUTO_INCREMENT PRIMARY KEY,
+    branch_id INT,
+    ingredient_id INT,
+    quantity_change DECIMAL(15,4),
+    reason ENUM('PURCHASE', 'PRODUCTION', 'WASTE', 'TRANSFER', 'AI_ADJUSTMENT'),
+    ai_context TEXT, -- The AI's "Voice" explaining the change
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (branch_id) REFERENCES ktd_branches(branch_id),
+    FOREIGN KEY (ingredient_id) REFERENCES ktd_ingredients(ingredient_id)
+) ENGINE=InnoDB;
