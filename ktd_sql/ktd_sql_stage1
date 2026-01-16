@@ -5,15 +5,15 @@ DROP TABLE IF EXISTS ktd_payments;
 DROP TABLE IF EXISTS ktd_invoices;
 DROP TABLE IF EXISTS ktd_customers;
 DROP TABLE IF EXISTS ktd_recipes;
+DROP TABLE IF EXISTS ktd_production_log;
 DROP TABLE IF EXISTS ktd_sales_log;
 DROP TABLE IF EXISTS ktd_stock_ledger;
 DROP TABLE IF EXISTS ktd_pos_products;
 DROP TABLE IF EXISTS ktd_ingredients;
 DROP TABLE IF EXISTS ktd_measuring_units;
 DROP TABLE IF EXISTS ktd_branches;
-DROP TABLE IF EXISTS ktd_unit_conversions;
 
--- 2. THE INFRASTRUCTURE
+-- 2. INFRASTRUCTURE
 CREATE TABLE ktd_branches (
     branch_id INT AUTO_INCREMENT PRIMARY KEY,
     branch_name VARCHAR(100),
@@ -26,13 +26,13 @@ CREATE TABLE ktd_measuring_units (
     unit_abbr VARCHAR(10)
 ) ENGINE=InnoDB;
 
--- 3. THE INVENTORY SILO (AI-Ready)
+-- 3. INVENTORY & PRODUCTION (The Raw Silo)
 CREATE TABLE ktd_ingredients (
     ingredient_id INT AUTO_INCREMENT PRIMARY KEY,
     ingredient_name VARCHAR(255),
     unit_id INT,
     reorder_level DECIMAL(15,4),
-    current_cost DECIMAL(15,2), -- Essential for Profit Margin AI
+    current_cost DECIMAL(15,2), -- AI tracks inflation here
     FOREIGN KEY (unit_id) REFERENCES ktd_measuring_units(unit_id)
 ) ENGINE=InnoDB;
 
@@ -42,8 +42,81 @@ CREATE TABLE ktd_stock_ledger (
     ingredient_id INT,
     quantity_change DECIMAL(15,4),
     reason ENUM('PURCHASE', 'PRODUCTION', 'WASTE', 'TRANSFER', 'AI_ADJUSTMENT'),
-    ai_context TEXT, -- The AI's "Voice" explaining the change
+    ai_context TEXT, -- Explains AI-driven stock fixes
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (branch_id) REFERENCES ktd_branches(branch_id),
     FOREIGN KEY (ingredient_id) REFERENCES ktd_ingredients(ingredient_id)
 ) ENGINE=InnoDB;
+
+-- 4. PRODUCTS & RECIPES (The Brain Silo)
+CREATE TABLE ktd_pos_products (
+    product_id INT AUTO_INCREMENT PRIMARY KEY,
+    barcode VARCHAR(100),
+    product_name VARCHAR(255),
+    category VARCHAR(100),
+    unit_price DECIMAL(10,2)
+) ENGINE=InnoDB;
+
+CREATE TABLE ktd_recipes (
+    recipe_id INT AUTO_INCREMENT PRIMARY KEY,
+    product_id INT,
+    ingredient_id INT,
+    qty_required DECIMAL(15,4),
+    FOREIGN KEY (product_id) REFERENCES ktd_pos_products(product_id),
+    FOREIGN KEY (ingredient_id) REFERENCES ktd_ingredients(ingredient_id)
+) ENGINE=InnoDB;
+
+-- 5. PRODUCTION LOG (The Deduction Trigger)
+CREATE TABLE ktd_production_log (
+    production_id INT AUTO_INCREMENT PRIMARY KEY,
+    branch_id INT,
+    product_id INT,
+    batch_quantity DECIMAL(15,4),
+    status ENUM('PLANNED', 'COMPLETED', 'WASTED'),
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (branch_id) REFERENCES ktd_branches(branch_id),
+    FOREIGN KEY (product_id) REFERENCES ktd_pos_products(product_id)
+) ENGINE=InnoDB;
+
+-- 6. SALES & BILLING (The Money Silo)
+CREATE TABLE ktd_customers (
+    customer_id INT AUTO_INCREMENT PRIMARY KEY,
+    customer_name VARCHAR(255),
+    phone VARCHAR(50),
+    balance_limit DECIMAL(15,2) DEFAULT 5000.00
+) ENGINE=InnoDB;
+
+CREATE TABLE ktd_sales_log (
+    sale_id INT AUTO_INCREMENT PRIMARY KEY,
+    branch_id INT,
+    product_id INT,
+    quantity_sold DECIMAL(15,4),
+    total_price DECIMAL(15,2),
+    customer_id INT NULL, -- For wholesale/B2B
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (branch_id) REFERENCES ktd_branches(branch_id),
+    FOREIGN KEY (product_id) REFERENCES ktd_pos_products(product_id),
+    FOREIGN KEY (customer_id) REFERENCES ktd_customers(customer_id)
+) ENGINE=InnoDB;
+
+CREATE TABLE ktd_invoices (
+    invoice_id INT AUTO_INCREMENT PRIMARY KEY,
+    customer_id INT,
+    sale_id INT, -- Automatically link to the specific sale
+    amount DECIMAL(15,2),
+    invoice_date DATE,
+    is_paid BOOLEAN DEFAULT FALSE,
+    FOREIGN KEY (customer_id) REFERENCES ktd_customers(customer_id),
+    FOREIGN KEY (sale_id) REFERENCES ktd_sales_log(sale_id)
+) ENGINE=InnoDB;
+
+CREATE TABLE ktd_payments (
+    payment_id INT AUTO_INCREMENT PRIMARY KEY,
+    customer_id INT,
+    amount_paid DECIMAL(15,2),
+    payment_date DATE,
+    payment_method ENUM('CASH', 'CARD', 'TRANSFER'),
+    FOREIGN KEY (customer_id) REFERENCES ktd_customers(customer_id)
+) ENGINE=InnoDB;
+
+SET FOREIGN_KEY_CHECKS = 1;
