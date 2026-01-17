@@ -1,130 +1,77 @@
--- 1. STAFF / CHEFS (Metadata for AI Tracking)
--- We will use the ai_context in production logs to track these names.
--- Names: Serkan (Master Chef), Fatma (Pastry Lead), Emre (Ice Cream Specialist)
+-- START TRANSACTION
+START TRANSACTION;
 
--- 2. BULK INVENTORY ARRIVAL (Oct 1, 2025)
-INSERT INTO ktd_ingredients (ingredient_name, unit_id, reorder_level, current_cost) VALUES 
-('Antep Fıstığı (Extra)', 1, 50.0, 1100.00), -- High cost for Baklava/Ice Cream
-('Kristal Şeker', 1, 200.0, 28.50),
-('Baklavalık Un', 1, 300.0, 22.00),
-('Tam Yağlı Süt', 2, 500.0, 32.00),
-('Ayçiçek Yağı', 2, 100.0, 45.00), -- For Tulumba frying
-('Salep (Pure)', 1, 5.0, 2500.00); -- The expensive "secret" for Dondurma
+-- 1. Measuring Units
+INSERT INTO ktd_measuring_units (unit_id, unit_name, unit_abbr) VALUES 
+(1, 'Kilogram', 'kg'), 
+(2, 'Litre', 'lt'), 
+(3, 'Adet', 'adt');
 
--- 3. INITIAL STOCK LEDGER ENTRIES
-INSERT INTO ktd_stock_ledger (branch_id, ingredient_id, quantity_change, reason, ai_context) VALUES 
-(1, 1, 250.0, 'PURCHASE', 'Initial seasonal bulk buy - Supplier: Gaziantep Birlik'),
-(1, 2, 1000.0, 'PURCHASE', 'Initial seasonal bulk buy'),
-(1, 3, 1500.0, 'PURCHASE', 'Initial seasonal bulk buy'),
-(1, 4, 2000.0, 'PURCHASE', 'Contracted delivery - Local Farm'),
-(1, 5, 300.0, 'PURCHASE', 'Bulk oil delivery for Tulumba station');
+-- 2. Branches
+INSERT INTO ktd_branches (branch_id, branch_name, is_production_center) VALUES 
+(1, 'Ana Mutfak (HQ)', TRUE), 
+(2, 'Çarşı Şube', FALSE);
 
--- CHUNK 2: OCTOBER PRODUCTION & RETAIL SALES (OCT 1 - OCT 15)
+-- 3. Customers
+INSERT INTO ktd_customers (customer_id, customer_name, phone, balance_limit) VALUES 
+(1, 'Hilton Otel', '555-001', 10000.00), 
+(2, 'Kordon Kafe', '555-002', 3000.00);
 
--- 1. PRODUCTION LOG (The "Burn")
--- Serkan Usta her sabah Tulumba döküyor, Emre ise haftada iki dondurma yapıyor.
-INSERT INTO ktd_production_log (branch_id, product_id, batch_quantity, status, timestamp) VALUES 
-(1, 1, 15.0, 'COMPLETED', '2025-10-01 07:30:00'), -- Serkan: 15kg Tulumba
-(1, 2, 20.0, 'COMPLETED', '2025-10-01 10:00:00'), -- Emre: 20kg Maraş Dondurma
-(1, 1, 12.0, 'COMPLETED', '2025-10-02 07:45:00'), -- Serkan: 12kg Tulumba
-(1, 1, 18.0, 'COMPLETED', '2025-10-03 07:15:00'), -- Serkan: 18kg Tulumba (Hafta sonu hazırlığı)
-(1, 2, 40.0, 'COMPLETED', '2025-10-04 09:00:00'); -- Emre: 40kg Dondurma (Yoğun Cumartesi)
+COMMIT;
 
--- 2. RETAIL SALES (The "Heartbeat")
--- Günlük küçük satışlar. AI'nın akşam yoğunluğunu görmesi için saatlere dikkat!
-INSERT INTO ktd_sales_log (branch_id, product_id, quantity_sold, total_price, timestamp) VALUES 
-(1, 1, 1.5, 300.00, '2025-10-01 12:30:00'),
-(1, 2, 0.5, 100.00, '2025-10-01 19:45:00'), -- Akşam dondurma keyfi
-(1, 2, 2.0, 400.00, '2025-10-01 20:15:00'), 
-(1, 1, 3.0, 600.00, '2025-10-04 15:00:00'), -- Cumartesi Tulumba yoğunluğu
-(1, 2, 5.5, 1100.00, '2025-10-04 21:30:00'); -- Cumartesi akşam dondurma kuyruğu
+START TRANSACTION;
 
--- 3. B2B / WHOLESALE (Hilton Otel Ekim Siparişi)
-INSERT INTO ktd_sales_log (branch_id, product_id, quantity_sold, total_price, customer_id, timestamp) VALUES 
-(1, 2, 50.0, 10000.00, 1, '2025-10-05 09:00:00'); -- Hilton'a 50kg Dondurma
+-- 4. Ingredients (Depends on Units)
+INSERT INTO ktd_ingredients (ingredient_id, ingredient_name, unit_id, reorder_level, current_cost) VALUES 
+(1, 'Antep Fıstığı (Extra)', 1, 50.0, 1100.00),
+(2, 'Kristal Şeker', 1, 200.0, 28.50),
+(3, 'Baklavalık Un', 1, 300.0, 22.00),
+(4, 'Tam Yağlı Süt', 2, 500.0, 32.00),
+(5, 'Ayçiçek Yağı', 2, 100.0, 45.00);
 
--- 4. AUTOMATED INVOICE (Hilton için fatura)
-INSERT INTO ktd_invoices (customer_id, sale_id, amount, invoice_date, is_paid) VALUES 
-(1, LAST_INSERT_ID(), 10000.00, '2025-10-05', 0);
-
-
--- 1. YENİ ÜRETİM: FATMA HANIMIN KIŞLIKLARI & BAKLAVA
-INSERT INTO ktd_production_log (branch_id, product_id, batch_quantity, status, timestamp) VALUES 
-(1, 1, 20.0, 'COMPLETED', '2025-10-20 08:00:00'), -- Serkan: 20kg Tulumba
-(1, 3, 10.0, 'COMPLETED', '2025-10-22 09:30:00'), -- Fatma: 10 Tepsi Baklava
-(1, 2, 10.0, 'COMPLETED', '2025-10-25 11:00:00'); -- Emre: Sezonun son büyük dondurma grubu
-
--- 2. FISTIK FİYAT KRİZİ (1 Kasım 2025)
--- AI bu değişikliği 'current_cost' üzerinden takip edecek.
-UPDATE ktd_ingredients SET current_cost = 1350.00 WHERE ingredient_name LIKE '%Fıstık%';
-
--- 3. KRİZ SONRASI MALZEME ALIMI
--- Fiyatlar yükselmesine rağmen Fatma hanım baklava için malzeme alıyor.
-INSERT INTO ktd_stock_ledger (branch_id, ingredient_id, quantity_change, reason, ai_context) VALUES 
-(1, 1, 50.0, 'PURCHASE', 'Fiyat artışına rağmen stok takviyesi yapıldı - Tedarikçi: Gaziantep'),
-(1, 3, 500.0, 'PURCHASE', 'Un stoku güncellendi');
-
--- 4. KASIM AYI SATIŞLARI (Havanın soğumasıyla dondurma düşüyor, baklava artıyor)
-INSERT INTO ktd_sales_log (branch_id, product_id, quantity_sold, total_price, timestamp) VALUES 
-(1, 3, 2.0, 1500.00, '2025-11-05 14:00:00'), -- Baklava satışı
-(1, 1, 5.0, 1000.00, '2025-11-05 16:30:00'), -- Tulumba satışı
-(1, 2, 0.5, 100.00, '2025-11-05 18:00:00'); -- Dondurma (azalan talep)
-
--- 5. AI DÜZELTMESİ (Örnek AI Müdahalesi)
--- AI, Serkan ustanın kaydetmeyi unuttuğu bir zayiatı tespit ediyor.
-INSERT INTO ktd_stock_ledger (branch_id, ingredient_id, quantity_change, reason, ai_context) VALUES 
-(1, 4, -5.0, 'AI_ADJUSTMENT', 'Süt kullanım verilerindeki sapma nedeniyle AI tarafından otomatik stok düzeltmesi yapıldı.');
+-- 5. POS Products
+INSERT INTO ktd_pos_products (product_id, barcode, product_name, category, unit_price) VALUES 
+(1, 'BRC-001', 'Tulumba Tatlısı (1kg)', 'Tatlı', 200.00),
+(2, 'BRC-002', 'Maraş Dondurma (1kg)', 'Dondurma', 400.00),
+(3, 'BRC-003', 'Fıstıklı Baklava (1kg)', 'Baklava', 750.00);
 
 
 
--- CHUNK 4: DECEMBER FINALE & YEAR-END BILLING
+START TRANSACTION;
 
--- 1. ARALIK AYI ÜRETİM PATLAMASI (Yılbaşı Siparişleri)
-INSERT INTO ktd_production_log (branch_id, product_id, batch_quantity, status, timestamp) VALUES 
-(1, 3, 50.0, 'COMPLETED', '2025-12-20 06:00:00'), -- Fatma: 50 Tepsi Yılbaşı Baklavası
-(1, 1, 40.0, 'COMPLETED', '2025-12-28 07:00:00'), -- Serkan: 40kg Bayram Tulumbası
-(1, 3, 30.0, 'WASTED', '2025-12-29 14:00:00');    -- ZAYİAT: Fırın arızası nedeniyle 30 tepsi yandı!
+-- 6. Recipes
+-- 1kg Tulumba uses 0.5kg Flour, 0.4kg Sugar, 1L Oil (frying)
+INSERT INTO ktd_recipes (product_id, ingredient_id, qty_required) VALUES 
+(1, 3, 0.500), (1, 2, 0.400), (1, 5, 1.000),
+-- 1kg Baklava uses 0.3kg Pistachio, 0.4kg Sugar, 0.5kg Flour
+(3, 1, 0.300), (3, 2, 0.400), (3, 3, 0.500);
 
--- 2. ZAYİATIN STOKTAN DÜŞÜLMESİ
--- AI bu 'WASTED' durumunu görünce malzemeleri otomatik olarak 'WASTE' nedeni ile deftere işler.
-INSERT INTO ktd_stock_ledger (branch_id, ingredient_id, quantity_change, reason, ai_context) VALUES 
-(1, 1, -9.0, 'WASTE', 'Fırın arızası kaynaklı yanma - Üretim ID: 8'),
-(1, 3, -15.0, 'WASTE', 'Fırın arızası kaynaklı yanma - Üretim ID: 8');
-
--- 3. BÜYÜK TAHSİLATLAR (Hilton ve Kordon Kafe Ödemeleri)
-INSERT INTO ktd_payments (customer_id, amount_paid, payment_date, payment_method) VALUES 
-(1, 7700.00, '2025-12-15', 'TRANSFER'), -- Hilton geçmiş borcunu kapattı
-(2, 1500.00, '2025-12-20', 'CARD');     -- Kordon Kafe ödemesi
-
--- 4. YILSONU PERAKENDE SATIŞLARI (Zirve Noktası)
-INSERT INTO ktd_sales_log (branch_id, product_id, quantity_sold, total_price, timestamp) VALUES 
-(1, 3, 10.0, 7500.00, '2025-12-31 18:00:00'), -- Yılbaşı akşamı Baklava satışı
-(1, 1, 8.0, 1600.00, '2025-12-31 19:30:00');  -- Yılbaşı akşamı Tulumba satışı
+COMMIT;
 
 
--- 1. B2B DEBT RECONCILIATION
--- Let's check where the Hilton (Customer 1) stands after their $7,700 payment.
--- They had invoices of $4,500 and $3,200 (Total $7,700). 
--- Since they paid $7,700, their current balance should be $0. 
--- We will mark those invoices as PAID to clear the dashboard.
-UPDATE ktd_invoices SET is_paid = 1 WHERE customer_id = 1 AND invoice_date < '2026-01-01';
+START TRANSACTION;
 
--- 2. THE "CLEAN START" PURCHASE (Jan 5, 2026)
--- After the December rush, Serkan usta realizes the flour and sugar bins are nearly empty.
-INSERT INTO ktd_stock_ledger (branch_id, ingredient_id, quantity_change, reason, ai_context) VALUES 
-(1, 2, 800.0, 'PURCHASE', 'Post-holiday replenishment - Sugar'),
-(1, 3, 1000.0, 'PURCHASE', 'Post-holiday replenishment - Flour');
+-- 6. Recipes (Linking Products to Ingredients)
+INSERT INTO ktd_recipes (product_id, ingredient_id, qty_required) VALUES 
+-- Tulumba (Product 1)
+(1, 3, 0.500), (1, 2, 0.400), (1, 5, 1.000),
+-- Dondurma (Product 2)
+(2, 4, 0.800), (2, 2, 0.200), (2, 6, 0.020),
+-- Baklava (Product 3)
+(3, 1, 0.300), (3, 2, 0.400), (3, 3, 0.500);
 
--- 3. AI AUDIT: THE TULUMBA MYSTERY 🍩
--- The AI notices that the "Ayçiçek Yağı" (Oil) level is lower than expected 
--- based on the reported batches. It logs an adjustment.
-INSERT INTO ktd_stock_ledger (branch_id, ingredient_id, quantity_change, reason, ai_context) VALUES 
-(1, 5, -12.5, 'AI_ADJUSTMENT', 'Oil consumption discrepancy detected. Likely unlogged deep-fryer refresh.');
+COMMIT;
 
--- 4. NEW YEAR B2B OPENING SALE
--- Kordon Kafe (Customer 2) starts the year with a large order for a private event.
-INSERT INTO ktd_sales_log (branch_id, product_id, quantity_sold, total_price, customer_id, timestamp) VALUES 
-(1, 1, 25.0, 5000.00, 2, '2026-01-10 10:00:00');
 
-INSERT INTO ktd_invoices (customer_id, sale_id, amount, invoice_date, is_paid) VALUES 
-(2, LAST_INSERT_ID(), 5000.00, '2026-01-10', 0);
+START TRANSACTION;
+
+-- 6. Recipes (Linking Products to Ingredients)
+INSERT INTO ktd_recipes (product_id, ingredient_id, qty_required) VALUES 
+-- Tulumba (Product 1)
+(1, 3, 0.500), (1, 2, 0.400), (1, 5, 1.000),
+-- Dondurma (Product 2)
+(2, 4, 0.800), (2, 2, 0.200), (2, 6, 0.020),
+-- Baklava (Product 3)
+(3, 1, 0.300), (3, 2, 0.400), (3, 3, 0.500);
+
+COMMIT;
