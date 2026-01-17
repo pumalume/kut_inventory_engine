@@ -1,21 +1,20 @@
 /**
- * KTD ENTERPRISE PLATFORM - Master Controller
- * Namespace: ktd_
+ * KTD ENTERPRISE PLATFORM - Master Controller (Updated with Purchasing)
  */
 
 const DB_CONFIG = {
-  host: "srv990.hstgr.io",
-  name: "u214463888_iqIB3",
-  user: "u214463888_GOVnK",
-  pwd: "Zv3UcW5koC", 
-  port: 3306
+  host: 
+  name: 
+  user: 
+  pwd:  
+  port:
 };
 
 const DB_URL = `jdbc:mysql://${DB_CONFIG.host}:${DB_CONFIG.port}/${DB_CONFIG.name}`;
 
 /**
  * 1. INITIALIZE KTD WORKBOOK
- * Creates the tabs with headers for all 11 enterprise tables.
+ * Creates the tabs with headers for all 12 enterprise tables.
  */
 function INITIALIZE_KTD_WORKBOOK() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -32,7 +31,9 @@ function INITIALIZE_KTD_WORKBOOK() {
     { name: "ktd_customers", headers: [["customer_id", "customer_name", "phone", "balance_limit"]] },
     { name: "ktd_sales_log", headers: [["sale_id", "branch_id", "product_id", "quantity_sold", "total_price", "customer_id", "timestamp"]] },
     { name: "ktd_invoices", headers: [["invoice_id", "customer_id", "sale_id", "amount", "invoice_date", "is_paid"]] },
-    { name: "ktd_payments", headers: [["payment_id", "customer_id", "amount_paid", "payment_date", "payment_method"]] }
+    { name: "ktd_payments", headers: [["payment_id", "customer_id", "amount_paid", "payment_date", "payment_method"]] },
+    // NEW TABLE ADDED BELOW
+    { name: "ktd_purchase_orders", headers: [["po_id", "ingredient_id", "qty_ordered", "status", "timestamp"]] }
   ];
 
   sheetsNeeded.forEach(s => {
@@ -41,36 +42,33 @@ function INITIALIZE_KTD_WORKBOOK() {
     sheet.clear();
     sheet.getRange(1, 1, 1, s.headers[0].length).setValues(s.headers)
          .setFontWeight("bold")
-         .setBackground("#d9ead3"); // Professional green for KTD
+         .setBackground("#d9ead3"); 
     sheet.setFrozenRows(1);
   });
 
-  const defaultSheet = ss.getSheetByName("Sheet1");
-  if (defaultSheet) ss.deleteSheet(defaultSheet);
-
-  ui.alert("🚀 KTD Enterprise Framework Initialized!");
+  ui.alert("🚀 KTD Enterprise Framework (v2) Initialized!");
 }
 
 /**
  * 2. PULL KTD DATA
- * Automatically detects column counts and pulls data from MySQL.
  */
 function pullKtdData() {
   const ui = SpreadsheetApp.getUi();
   try {
     const conn = Jdbc.getConnection(DB_URL, DB_CONFIG.user, DB_CONFIG.pwd);
     
+    // Updated table list
     const tables = [
       "ktd_branches", "ktd_measuring_units", "ktd_ingredients", 
       "ktd_stock_ledger", "ktd_pos_products", "ktd_recipes", 
       "ktd_production_log", "ktd_customers", "ktd_sales_log", 
-      "ktd_invoices", "ktd_payments"
+      "ktd_invoices", "ktd_payments", "ktd_purchase_orders"
     ];
 
     tables.forEach(tableName => {
       const results = conn.createStatement().executeQuery(`SELECT * FROM ${tableName}`);
       const metaData = results.getMetaData();
-      const colCount = metaData.getColumnCount(); // Dynamic column counting 🤖
+      const colCount = metaData.getColumnCount(); 
       
       writeDataToSheet(tableName, results, colCount);
     });
@@ -83,7 +81,7 @@ function pullKtdData() {
 }
 
 /**
- * HELPER: Writes data rows
+ * HELPER: Writes data rows using getObject for better data type handling
  */
 function writeDataToSheet(sheetName, results, colCount) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
@@ -96,7 +94,7 @@ function writeDataToSheet(sheetName, results, colCount) {
   let rows = [];
   while (results.next()) {
     let row = [];
-    for (let i = 1; i <= colCount; i++) { row.push(results.getString(i)); }
+    for (let i = 1; i <= colCount; i++) { row.push(results.getObject(i)); }
     rows.push(row);
   }
 
@@ -105,9 +103,6 @@ function writeDataToSheet(sheetName, results, colCount) {
   }
 }
 
-/**
- * MENU
- */
 function onOpen() {
   SpreadsheetApp.getUi().createMenu('🏢 KTD Enterprise Platform')
       .addItem('⚠️ 1. Initialize Workbook', 'INITIALIZE_KTD_WORKBOOK')
