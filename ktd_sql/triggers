@@ -36,3 +36,38 @@ BEGIN
         INSERT INTO ktd_stock_ledger ... (qty_required * batch_quantity * -1)
     END IF;
 END;
+-- 1. Change the delimiter so the semicolons inside the trigger don't break the process
+DELIMITER //
+
+-- 2. Clean up the old version if it exists
+DROP TRIGGER IF EXISTS trg_ktd_production_deduction //
+
+-- 3. Create the fresh, robust version
+CREATE TRIGGER trg_ktd_production_deduction
+AFTER UPDATE ON ktd_production_log
+FOR EACH ROW
+BEGIN
+    -- Only trigger when moving from something else to 'COMPLETED'
+    IF NEW.status = 'COMPLETED' AND (OLD.status IS NULL OR OLD.status != 'COMPLETED') THEN
+        
+        INSERT INTO ktd_stock_ledger (
+            branch_id, 
+            ingredient_id, 
+            quantity_change, 
+            reason, 
+            ai_context
+        )
+        SELECT 
+            NEW.branch_id, 
+            r.ingredient_id, 
+            (r.qty_required * NEW.batch_quantity * -1), -- Negative for consumption
+            'PRODUCTION',
+            CONCAT('Auto-deduction for Product: ', NEW.product_id, ' (Log ID: ', NEW.production_id, ')')
+        FROM ktd_recipes r
+        WHERE r.product_id = NEW.product_id;
+        
+    END IF;
+END //
+
+-- 4. Change the delimiter back to standard
+DELIMITER ;
