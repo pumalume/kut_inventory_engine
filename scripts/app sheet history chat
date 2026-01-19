@@ -1,0 +1,45 @@
+1. The "Smart Gallery" View
+Instead of just a blank form, we create a Gallery View or Deck View based on your "Smart View" (v_ktd_production_frequency).
+
+Sorting: We sort this view by prod_count (Descending). This puts the most-made items right at the top of his screen.
+
+The Trigger: We set the "Event Action" for this view. When he taps an item (e.g., Tulumba), it doesn't just "show" the product; it triggers an action to "Add a new row to another table using values from this row."
+
+2. The Form & The "Planned" Status
+When he taps the product in the gallery:
+
+AppSheet opens the ktd_production_log form automatically.
+
+The Product Name is already filled in.
+
+The Status is automatically set to PLANNED (using the "Initial Value" property).
+
+The keyboard pops up for the Quantity.
+
+3. The "Return to Main" Logic (Finish View)
+You mentioned wanting to return to the main view after saving.
+
+In the Form View settings for the production log, there is a property called "Finish View".
+
+We set this to your "Production Plan" view.
+
+The Result: He taps "Tulumba" -> Types "20" -> Hits "Save" -> The app immediately slides back to his main Production Plan list where he can see the new item waiting.
+
+GitHub Diary Entry: UX Logic
+Here is the entry for your project history:
+
+Title: Intuitive Production Entry Flow
+Strategy: "Selection-First" data entry to minimize typing and errors. Workflow Implementation:
+
+Source: v_ktd_production_frequency (SQL View).
+
+Entry Point: A Gallery View acting as a "Product Menu" sorted by historical frequency.
+
+Action: An App: go to another view within this app action that pre-fills the ktd_production_log form with the selected product_id.
+
+Navigation: Configured "Finish View" logic to redirect the user back to the active "Production Plan" slice upon save. Outcome: A high-speed, 3-tap process for adding new production orders, keeping the owner in the main operational view at all times.
+
+Ready for the Connection?
+To make this "Save" button actually talk to your MySQL server and trigger the inventory deduction, you need the bridge.
+
+Would you like the "Universal Push/Pull" script now? This will ensure that when he hits "Save" and then later hits "Complete," the server does all the recipe math we've built.
