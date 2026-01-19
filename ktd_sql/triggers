@@ -1,25 +1,27 @@
 DELIMITER //
 
-CREATE TRIGGER after_production_entry
-AFTER INSERT ON kutv3_production_log
+CREATE TRIGGER trg_ktd_production_deduction
+AFTER INSERT ON ktd_production_log
 FOR EACH ROW
 BEGIN
-    -- This inserts a deduction for every ingredient tied to the product produced
-    INSERT INTO kutv3_stock_ledger (
-        branch_id, 
-        ingredient_id, 
-        quantity_change, 
-        reason, 
-        timestamp
-    )
-    SELECT 
-        NEW.branch_id, 
-        r.ingredient_id, 
-        (r.qty_required * NEW.batch_quantity * -1), -- Negative for consumption
-        'PRODUCTION', 
-        CURRENT_TIMESTAMP
-    FROM kutv3_recipes r
-    WHERE r.product_id = NEW.product_id;
+    -- Only deduct stock if the production is marked as COMPLETED
+    IF NEW.status = 'COMPLETED' THEN
+        INSERT INTO ktd_stock_ledger (
+            branch_id, 
+            ingredient_id, 
+            quantity_change, 
+            reason, 
+            ai_context
+        )
+        SELECT 
+            NEW.branch_id, 
+            r.ingredient_id, 
+            (r.qty_required * NEW.batch_quantity * -1), -- Negative value for consumption
+            'PRODUCTION',
+            CONCAT('Auto-deduction for production ID: ', NEW.production_id)
+        FROM ktd_recipes r
+        WHERE r.product_id = NEW.product_id;
+    END IF;
 END; //
 
 DELIMITER ;
