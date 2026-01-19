@@ -25,3 +25,14 @@ BEGIN
 END; //
 
 DELIMITER ;
+
+
+-- Logic: On Production Completion -> Deduct Recipe Ingredients
+CREATE TRIGGER trg_ktd_production_deduction
+AFTER UPDATE ON ktd_production_log
+FOR EACH ROW
+BEGIN
+    IF NEW.status = 'COMPLETED' AND OLD.status != 'COMPLETED' THEN
+        INSERT INTO ktd_stock_ledger ... (qty_required * batch_quantity * -1)
+    END IF;
+END;
