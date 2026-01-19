@@ -1,0 +1,10 @@
+CREATE VIEW v_ktd_smart_production_rank AS
+SELECT 
+    p.product_id,
+    p.product_name,
+    p.category,
+    COUNT(pl.production_id) AS production_frequency
+FROM ktd_pos_products p
+LEFT JOIN ktd_production_log pl ON p.product_id = pl.product_id
+GROUP BY p.product_id, p.product_name, p.category
+ORDER BY production_frequency DESC;
