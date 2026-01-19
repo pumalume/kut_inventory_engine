@@ -1,0 +1,25 @@
+DELIMITER //
+
+CREATE TRIGGER after_production_entry
+AFTER INSERT ON kutv3_production_log
+FOR EACH ROW
+BEGIN
+    -- This inserts a deduction for every ingredient tied to the product produced
+    INSERT INTO kutv3_stock_ledger (
+        branch_id, 
+        ingredient_id, 
+        quantity_change, 
+        reason, 
+        timestamp
+    )
+    SELECT 
+        NEW.branch_id, 
+        r.ingredient_id, 
+        (r.qty_required * NEW.batch_quantity * -1), -- Negative for consumption
+        'PRODUCTION', 
+        CURRENT_TIMESTAMP
+    FROM kutv3_recipes r
+    WHERE r.product_id = NEW.product_id;
+END; //
+
+DELIMITER ;
