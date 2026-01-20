@@ -1,0 +1,33 @@
+The "App Setup" Checklist
+1. Connect your Data
+In the AppSheet Editor, go to Data > Tables.
+
+Add your Google Sheet tabs (e.g., ktd_production_log, ktd_inventory).
+
+2. Create your Slices (The Logic Filters)
+Active Plan Slice: Filter condition [status] <> "DISMISSED".
+
+Low Stock Slice: Filter condition [quantity] < [reorder_level].
+
+3. Create your Actions (The Buttons/Swipes)
+Mark Completed: Set [status] to "COMPLETED".
+
+Dismiss: Set [status] to "DISMISSED". (Set Appearance to "Do not display").
+
+4. Build the Views (The UI)
+Go to App > Views and create the views from our list. For each view:
+
+Assign it a Name (e.g., "Active Plan").
+
+Select the Data Source (The Table or the Slice).
+
+Select the View Type (Deck, Table, Form, or Gallery).
+
+5. Apply Format Rules (The Colors)
+Go to App > Format Rules.
+
+Rule 1: If [status] = "PLANNED", set color to Pink.
+
+Rule 2: If [status] = "COMPLETED", set color to Green.
+
+GitHub Diary Entry: Manual UI Orchestration
