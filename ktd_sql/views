@@ -21,3 +21,14 @@ FROM ktd_pos_products p
 LEFT JOIN ktd_production_log pl ON p.product_id = pl.product_id
 GROUP BY p.product_id, p.product_name
 ORDER BY prod_count DESC;
+
+-- TABLE CONTEXT: ktd_stock_ledger
+-- PURPOSE: Sums all changes to show current on-hand balance
+CREATE VIEW ktd_stock_totals AS
+SELECT 
+	i.ingredient_id as id,
+    i.ingredient_name as name, 
+    SUM(l.quantity_change) AS current_quantity
+FROM ktd_stock_ledger l
+JOIN ktd_ingredients i ON i.ingredient_id = l.ingredient_id
+GROUP BY l.ingredient_id;
